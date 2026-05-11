@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,13 @@ import {
   StatusBar,
   Animated,
   Platform,
-  KeyboardAvoidingView,
   ActivityIndicator,
   Alert,
 } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
+import { FONTS, SPACING, RADIUS } from '../theme';
 import {
   ShieldFilledIcon,
   MailIcon,
@@ -24,6 +23,9 @@ import {
   ArrowRightIcon,
 } from '../icons';
 import InputField from '../components/InputField';
+import ScreenWrapper from '../components/ScreenWrapper';
+import { API_URL } from '../config';
+import { useTheme, ThemeColors } from '../contexts/ThemeContext';
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -42,6 +44,9 @@ export default function LoginScreen({
   const [focused,  setFocused]  = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError]   = useState('');
+
+  const { colors, isDark } = useTheme();
+  const s = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
 
   const fade  = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(20)).current;
@@ -62,9 +67,6 @@ export default function LoginScreen({
     setApiError('');
     
     try {
-      // Usando o seu IP da rede local
-      const API_URL = 'http://10.243.35.56:8080';
-      
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -133,18 +135,14 @@ export default function LoginScreen({
   };
 
   return (
-    <KeyboardAvoidingView
-      style={s.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+    <ScreenWrapper style={s.root} contentContainerStyle={s.container}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
-      <View style={s.container}>
 
         {/* ── Logo ── */}
         <Animated.View style={[s.logoBlock, { opacity: fade, transform: [{ translateY: slide }] }]}>
           <View style={s.logoBox}>
-            <ShieldFilledIcon size={32} color={COLORS.white} />
+            <ShieldFilledIcon size={32} color="#FFFFFF" />
           </View>
           <Text style={s.brand}>FIREWALL</Text>
         </Animated.View>
@@ -159,7 +157,7 @@ export default function LoginScreen({
             onChangeText={setEmail}
             keyboardType="email-address"
             autoComplete="email"
-            icon={<MailIcon size={18} color={COLORS.secondary} />}
+            icon={<MailIcon size={18} color={colors.secondary} />}
             focused={focused === 'email'}
             onFocus={() => setFocused('email')}
             onBlur={() => setFocused(null)}
@@ -174,7 +172,7 @@ export default function LoginScreen({
             showToggle
             visible={showPass}
             onToggle={() => setShowPass(v => !v)}
-            icon={<LockIcon size={18} color={COLORS.secondary} />}
+            icon={<LockIcon size={18} color={colors.secondary} />}
             focused={focused === 'pass'}
             onFocus={() => setFocused('pass')}
             onBlur={() => setFocused(null)}
@@ -190,7 +188,7 @@ export default function LoginScreen({
             disabled={!canSubmit || isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color={COLORS.white} />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={s.primaryBtnText}>Entrar</Text>
             )}
@@ -207,7 +205,7 @@ export default function LoginScreen({
                 onPress={handleBiometricAuth}
                 activeOpacity={0.7}
               >
-                <FontAwesome5 name="fingerprint" size={26} color={COLORS.primary} />
+                <FontAwesome5 name="fingerprint" size={26} color={colors.primary} />
               </TouchableOpacity>
 
               {/* Face ID button — Outlined variant */}
@@ -216,7 +214,7 @@ export default function LoginScreen({
                 onPress={handleBiometricAuth}
                 activeOpacity={0.7}
               >
-                <FaceIdIcon size={26} color={COLORS.primary} strokeWidth={1.5} />
+                <FaceIdIcon size={26} color={colors.primary} strokeWidth={1.5} />
               </TouchableOpacity>
 
             </View>
@@ -226,19 +224,18 @@ export default function LoginScreen({
           <TouchableOpacity style={s.registerLink} onPress={onNavigateToRegister}>
             <Text style={s.registerText}>Não sou cadastrado </Text>
             <Text style={s.registerBold}>— Criar conta</Text>
-            <ArrowRightIcon size={13} color={COLORS.tertiary} strokeWidth={2.5} />
+            <ArrowRightIcon size={13} color={colors.tertiary} strokeWidth={2.5} />
           </TouchableOpacity>
 
         </Animated.View>
-      </View>
-    </KeyboardAvoidingView>
+    </ScreenWrapper>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.white },
+const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   container: {
     flex: 1,
     paddingHorizontal: SPACING.xxxl,
@@ -251,12 +248,12 @@ const s = StyleSheet.create({
   logoBox: {
     width: 72,
     height: 72,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: RADIUS.xl,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
-    shadowColor: COLORS.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
     shadowRadius: 16,
@@ -266,14 +263,14 @@ const s = StyleSheet.create({
     fontSize: 26,
     fontWeight: '800',
     fontFamily: FONTS.headline,
-    color: COLORS.primary,
+    color: colors.primary,
     letterSpacing: 3,
   },
   tagline: {
     fontSize: 10,
     fontWeight: '600',
     fontFamily: FONTS.body,
-    color: COLORS.secondary,
+    color: colors.secondary,
     letterSpacing: 2,
     marginTop: 4,
   },
@@ -285,13 +282,13 @@ const s = StyleSheet.create({
   apiErrorText: {
     fontSize: 14,
     fontFamily: FONTS.body,
-    color: COLORS.error,
+    color: colors.error,
     textAlign: 'center',
   },
 
   // Primary button — matches "Primary" variant from design system
   primaryBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: RADIUS.lg,
     paddingVertical: 17,
     alignItems: 'center',
@@ -299,11 +296,11 @@ const s = StyleSheet.create({
     marginBottom: SPACING.xxxl,
   },
   primaryBtnDisabled: {
-    backgroundColor: COLORS.secondary,
+    backgroundColor: colors.secondary,
     opacity: 0.5,
   },
   primaryBtnText: {
-    color: COLORS.white,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
     fontFamily: FONTS.body,
@@ -316,7 +313,7 @@ const s = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     fontFamily: FONTS.body,
-    color: COLORS.secondary,
+    color: colors.secondary,
     letterSpacing: 1.4,
     marginBottom: SPACING.md,
   },
@@ -325,9 +322,9 @@ const s = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.tertiaryFaint,
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1.5,
-    borderColor: `${COLORS.tertiary}40`,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -343,12 +340,12 @@ const s = StyleSheet.create({
   registerText: {
     fontSize: 14,
     fontFamily: FONTS.body,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   registerBold: {
     fontSize: 14,
     fontFamily: FONTS.body,
-    color: COLORS.tertiary,
+    color: colors.tertiary,
     fontWeight: '700',
   },
 });

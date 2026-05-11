@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ScrollView, TouchableOpacity, Text, StyleSheet, View } from 'react-native';
-import { COLORS, FONTS, RADIUS, SPACING } from '../theme';
+import { FONTS, RADIUS, SPACING } from '../theme';
+import { useTheme, ThemeColors } from '../contexts/ThemeContext';
 
 interface CategorySelectorProps {
   categories: string[];
@@ -9,6 +10,9 @@ interface CategorySelectorProps {
 }
 
 export default function CategorySelector({ categories, selected, onSelect }: CategorySelectorProps) {
+  const { colors, isDark } = useTheme();
+  const s = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+
   return (
     <View style={s.container}>
       <Text style={s.label}>CATEGORIA</Text>
@@ -31,7 +35,7 @@ export default function CategorySelector({ categories, selected, onSelect }: Cat
   );
 }
 
-const s = StyleSheet.create({
+const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   container: {
     marginBottom: SPACING.lg,
   },
@@ -39,7 +43,7 @@ const s = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     fontFamily: FONTS.body,
-    color: COLORS.secondary,
+    color: colors.secondary,
     letterSpacing: 0.7,
     marginBottom: SPACING.sm,
   },
@@ -50,19 +54,21 @@ const s = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   pillActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   text: {
     fontFamily: FONTS.body,
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   textActive: {
-    color: COLORS.white,
+    color: '#FFFFFF',
     fontWeight: '600',
   },
 });

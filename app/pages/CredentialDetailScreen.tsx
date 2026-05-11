@@ -1,19 +1,50 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, StatusBar, TouchableOpacity, Platform, Alert, Linking, } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, StatusBar, TouchableOpacity, Platform, Alert, Linking, ActivityIndicator } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { ArrowLeft, Edit3, ShieldCheck, Clock } from 'lucide-react-native';
-import { COLORS, FONTS, RADIUS, SPACING } from '../theme';
+import { ArrowLeft, Edit3, Clock, Eye, EyeOff, Trash2 } from 'lucide-react-native';
+import { FONTS, RADIUS, SPACING } from '../theme';
 import TotpCard from '../components/TotpCard';
 import DetailField from '../components/DetailField';
+import { API_URL } from '../config';
+import { useTheme, ThemeColors } from '../contexts/ThemeContext';
 
 interface CredentialDetailScreenProps {
+  token?: string | null;
   credential?: any;
   onEdit?: () => void;
   onBack?: () => void;
+  onDeleteSuccess?: () => void;
 }
 
-export default function CredentialDetailScreen({ credential, onEdit, onBack }: CredentialDetailScreenProps) {
+export default function CredentialDetailScreen({ token, credential, onEdit, onBack, onDeleteSuccess }: CredentialDetailScreenProps) {
+  const [showNotes, setShowNotes] = useState(false);
+  const [auditResult, setAuditResult] = useState<any>(null);
+  const [isAuditing, setIsAuditing] = useState(true);
+
+  const { colors, isDark } = useTheme();
+  const s = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+
+  useEffect(() => {
+    if (credential?.id && token) {
+      fetchAudit();
+    }
+  }, [credential, token]);
+
+  const fetchAudit = async () => {
+    setIsAuditing(true);
+    try {
+      const response = await fetch(`${API_URL}/api/credentials/${credential.id}/audit`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) setAuditResult(await response.json());
+    } catch (e) {
+      console.log('Falha na auditoria', e);
+    } finally {
+      setIsAuditing(false);
+    }
+  };
+
   const handleCopy = async (text: string) => {
     if (!text) return;
     await Clipboard.setStringAsync(text);
@@ -36,19 +67,68 @@ export default function CredentialDetailScreen({ credential, onEdit, onBack }: C
     }
   };
 
+  const handleDelete = () => {
+    Alert.alert(
+      'Excluir Credencial',
+      'Tem certeza que deseja excluir esta credencial permanentemente?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await fetch(`${API_URL}/api/credentials/${credential?.id}`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              if (response.ok) {
+                onDeleteSuccess?.();
+              } else {
+                Alert.alert('Erro', 'Não foi possível excluir a credencial.');
+              }
+            } catch (error) {
+              Alert.alert('Erro', 'Falha na conexão com o servidor.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Tenta processar o campo de notas que pode estar como JSON String vindo do banco
+  let displayNotes = credential?.notes;
+  if (typeof displayNotes === 'string') {
+    try {
+      const parsed = JSON.parse(displayNotes);
+      if (Array.isArray(parsed)) {
+        displayNotes = parsed;
+      }
+    } catch (e) {
+      // Mantém como string caso não seja um JSON (notas antigas)
+    }
+  }
+
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={isDark ? colors.background : colors.primary} />
       
       {/* Cabeçalho Inline (adaptado para ter o ícone de edição) */}
       <View style={s.header}>
         <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={onBack}>
-          <ArrowLeft size={24} color={COLORS.white} />
+          <ArrowLeft size={24} color={isDark ? colors.textPrimary : '#FFFFFF'} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Detalhes da Entrada</Text>
-        <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={onEdit}>
-          <Edit3 size={20} color={COLORS.white} />
-        </TouchableOpacity>
+        <View style={s.headerActions}>
+          <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={handleDelete}>
+            <Trash2 size={20} color={isDark ? colors.textPrimary : '#FFFFFF'} />
+          </TouchableOpacity>
+          <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={onEdit}>
+            <Edit3 size={20} color={isDark ? colors.textPrimary : '#FFFFFF'} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
@@ -63,7 +143,7 @@ export default function CredentialDetailScreen({ credential, onEdit, onBack }: C
             <Text style={s.subtitle}>{credential?.username || 'Sem Usuário'}</Text>
           </View>
           <View style={s.iconBox}>
-            <FontAwesome5 name="key" size={24} color={COLORS.primary} />
+            <FontAwesome5 name="key" size={24} color={colors.primary} />
           </View>
         </View>
 
@@ -96,28 +176,69 @@ export default function CredentialDetailScreen({ credential, onEdit, onBack }: C
         ) : null}
 
         {/* Bloco de Notas (diferente dos DetailFields pois é texto longo) */}
-        {credential?.notes ? (
-          <View style={s.notesBox}>
-            <Text style={s.notesLabel}>NOTAS</Text>
-            <Text style={s.notesText}>{credential.notes}</Text>
+        {displayNotes && Array.isArray(displayNotes) && displayNotes.length > 0 ? (
+          <View style={s.notesContainer}>
+            <View style={s.notesHeader}>
+              <Text style={s.notesLabel}>NOTAS</Text>
+              <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={() => setShowNotes(!showNotes)}>
+                {showNotes ? <EyeOff size={16} color={colors.neutral} /> : <Eye size={16} color={colors.neutral} />}
+              </TouchableOpacity>
+            </View>
+            {displayNotes.map((note, index) => (
+              <View key={index} style={s.notesBox}>
+                <Text style={s.noteItem}>{showNotes ? note : '••••••••••••••••••••••••'}</Text>
+              </View>
+            ))}
+          </View>
+        // Fallback para dados antigos que podem ser uma string
+        ) : displayNotes && typeof displayNotes === 'string' ? (
+          <View style={s.notesContainer}>
+            <View style={s.notesHeader}>
+              <Text style={s.notesLabel}>NOTAS</Text>
+              <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={() => setShowNotes(!showNotes)}>
+                {showNotes ? <EyeOff size={16} color={colors.neutral} /> : <Eye size={16} color={colors.neutral} />}
+              </TouchableOpacity>
+            </View>
+            <View style={s.notesBox}>
+              <Text style={s.noteItem}>{showNotes ? displayNotes : '••••••••••••••••••••••••'}</Text>
+            </View>
           </View>
         ) : null}
 
-        {/* Crachá de Segurança */}
-        <View style={s.securityBadge}>
-          <View style={s.shieldIconWrap}>
-            <ShieldCheck size={16} color={COLORS.success} />
-          </View>
-          <View>
-            <Text style={s.securityBadgeTitle}>Força da Senha: Excelente</Text>
-            <Text style={s.securityBadgeText}>Única, complexa e nunca violada.</Text>
-          </View>
+        {/* Histórico da Credencial */}
+        <View style={s.auditSection}>
+          <Text style={s.auditHeader}>HISTÓRICO DA CREDENCIAL</Text>
+          
+          {isAuditing ? (
+            <View style={s.auditLoading}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={s.auditLoadingText}>Carregando histórico...</Text>
+            </View>
+          ) : auditResult ? (
+            <View style={s.auditCards}>
+              <View style={[s.auditCard, s.auditCardInfo]}>
+                <Clock size={20} color={colors.neutral} />
+                <View style={s.auditCardTextWrap}>
+                  <Text style={s.auditCardTitleInfo}>Data de Criação</Text>
+                  <Text style={s.auditCardDesc}>{auditResult.createdAt}</Text>
+                </View>
+              </View>
+              
+              <View style={[s.auditCard, s.auditCardInfo]}>
+                <Edit3 size={20} color={colors.neutral} />
+                <View style={s.auditCardTextWrap}>
+                  <Text style={s.auditCardTitleInfo}>Última Modificação</Text>
+                  <Text style={s.auditCardDesc}>{auditResult.updatedAt}</Text>
+                </View>
+              </View>
+            </View>
+          ) : null}
         </View>
 
         {/* Rodapé de Metadados */}
         <View style={s.footer}>
           <View style={s.footerRow}>
-            <Clock size={12} color={COLORS.placeholder} />
+            <Clock size={12} color={colors.placeholder} />
             <Text style={s.footerText}> Informação protegida ponta-a-ponta</Text>
           </View>
           <Text style={s.footerId}>VAULT ID: FW-{credential?.id || '000'}</Text>
@@ -128,29 +249,36 @@ export default function CredentialDetailScreen({ credential, onEdit, onBack }: C
   );
 }
 
-const s = StyleSheet.create({
+const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: isDark ? colors.background : colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.md,
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 16 : 50, // Ajuste de Safe Area
+    borderBottomWidth: isDark ? 1 : 0,
+    borderBottomColor: colors.border,
   },
   headerTitle: {
     fontFamily: FONTS.headline,
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.white,
+    color: isDark ? colors.textPrimary : '#FFFFFF',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.lg,
   },
   content: {
     padding: SPACING.xl,
-    paddingBottom: 40,
+    paddingBottom: 80,
   },
   titleSection: {
     flexDirection: 'row',
@@ -163,7 +291,7 @@ const s = StyleSheet.create({
     paddingRight: SPACING.md,
   },
   categoryPill: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surfaceAlt,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: RADIUS.sm,
@@ -174,82 +302,82 @@ const s = StyleSheet.create({
     fontSize: 9,
     fontFamily: FONTS.body,
     fontWeight: '800',
-    color: COLORS.secondary,
+    color: colors.textSecondary,
     letterSpacing: 0.5,
   },
   title: {
     fontSize: 28,
     fontFamily: FONTS.headline,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 13,
     fontFamily: FONTS.body,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   iconBox: {
     width: 48,
     height: 48,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: RADIUS.md,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  notesContainer: {
+    marginBottom: SPACING.lg,
+  },
+  notesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
   },
   notesBox: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: RADIUS.md,
     padding: SPACING.md,
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.sm, // Espaçamento entre cada caixa de nota
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   notesLabel: {
     fontSize: 10,
     fontWeight: '700',
     fontFamily: FONTS.body,
-    color: COLORS.secondary,
+    color: colors.secondary,
     letterSpacing: 0.5,
-    marginBottom: SPACING.sm,
   },
-  notesText: {
+  noteItem: {
     fontSize: 13,
     fontFamily: FONTS.body,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 20,
   },
-  securityBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: `${COLORS.success}40`,
-    backgroundColor: `${COLORS.success}10`,
-    padding: SPACING.md,
-    borderRadius: RADIUS.md,
+  auditSection: {
     marginBottom: SPACING.xxxl,
+    marginTop: SPACING.md,
   },
-  shieldIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.md,
-    borderWidth: 1,
-    borderColor: `${COLORS.success}40`,
+  auditHeader: {
+    fontSize: 10, fontWeight: '700', fontFamily: FONTS.body, color: colors.secondary, letterSpacing: 1, marginBottom: SPACING.md,
   },
-  securityBadgeTitle: {
-    fontSize: 13,
-    fontFamily: FONTS.body,
-    fontWeight: '700',
-    color: COLORS.primary,
+  auditLoading: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, backgroundColor: colors.surface, padding: SPACING.md, borderRadius: RADIUS.md,
   },
-  securityBadgeText: {
-    fontSize: 11,
-    fontFamily: FONTS.body,
-    color: COLORS.textSecondary,
-    marginTop: 2,
+  auditLoadingText: {
+    fontSize: 12, fontFamily: FONTS.body, color: colors.textSecondary,
   },
+  auditCards: { gap: SPACING.md },
+  auditCard: {
+    flexDirection: 'row', alignItems: 'center', padding: SPACING.md, borderRadius: RADIUS.md, borderWidth: 1,
+  },
+  auditCardInfo: { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+  auditCardTextWrap: { marginLeft: SPACING.md, flex: 1 },
+  auditCardTitleInfo: { fontSize: 13, fontFamily: FONTS.body, fontWeight: '700', color: colors.textPrimary },
+  auditCardDesc: { fontSize: 11, fontFamily: FONTS.body, color: colors.textSecondary, marginTop: 2, lineHeight: 16 },
   footer: {
     alignItems: 'center',
     gap: 4,
@@ -261,13 +389,13 @@ const s = StyleSheet.create({
   footerText: {
     fontSize: 10,
     fontFamily: FONTS.body,
-    color: COLORS.placeholder,
+    color: colors.placeholder,
   },
   footerId: {
     fontSize: 9,
     fontFamily: FONTS.body,
     fontWeight: '700',
-    color: COLORS.placeholder,
+    color: colors.placeholder,
     letterSpacing: 1,
   },
 });

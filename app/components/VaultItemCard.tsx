@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { COLORS, FONTS, RADIUS, SPACING, SHADOWS } from '../theme';
-// Substitua pelos seus ícones (lucide-react-native ou expo-vector-icons)
+import { FONTS, RADIUS, SPACING, SHADOWS } from '../theme';
 import { ChevronRight, ShieldAlert } from 'lucide-react-native'; 
+import { useTheme, ThemeColors } from '../contexts/ThemeContext';
+
 
 export interface VaultItemProps {
   title: string;
@@ -13,6 +14,9 @@ export interface VaultItemProps {
 }
 
 export default function VaultItemCard({ title, subtitle, icon, categoryColor, warning }: VaultItemProps) {
+  const { colors, isDark } = useTheme();
+  const s = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+
   return (
     <TouchableOpacity style={s.card} activeOpacity={0.8}>
       {/* Indicador de Categoria Lateral */}
@@ -33,20 +37,21 @@ export default function VaultItemCard({ title, subtitle, icon, categoryColor, wa
           <Text style={s.subtitle} numberOfLines={1}>{subtitle}</Text>
         </View>
 
-        <ChevronRight size={20} color={COLORS.placeholder} />
+        <ChevronRight size={20} color={colors.primary} />
       </View>
     </TouchableOpacity>
   );
 }
 
-const s = StyleSheet.create({
+const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   card: {
     flexDirection: 'row',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.surface,
     borderRadius: RADIUS.lg,
     marginBottom: SPACING.md,
     overflow: 'hidden',
-    ...SHADOWS.card,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   indicator: {
     width: 4,
@@ -61,10 +66,12 @@ const s = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surfaceAlt,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: SPACING.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   textWrap: {
     flex: 1,
@@ -80,23 +87,25 @@ const s = StyleSheet.create({
     fontFamily: FONTS.body,
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.textPrimary, // White (High Emphasis no Dark Mode)
   },
   subtitle: {
     fontFamily: FONTS.body,
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   warningBadge: {
-    backgroundColor: `${COLORS.error}20`,
+    backgroundColor: `${colors.error}15`,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    borderWidth: 1,
+    borderColor: `${colors.error}40`,
   },
   warningText: {
     fontSize: 9,
     fontFamily: FONTS.body,
     fontWeight: '800',
-    color: COLORS.error,
+    color: colors.error,
   },
 }); 

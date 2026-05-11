@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { COLORS, FONTS, RADIUS, SPACING } from '../theme';
+import { FONTS, RADIUS, SPACING } from '../theme';
 import { Copy, Eye, EyeOff, ExternalLink } from 'lucide-react-native';
+import { useTheme, ThemeColors } from '../contexts/ThemeContext';
 
 interface DetailFieldProps {
   label: string;
@@ -14,6 +15,9 @@ interface DetailFieldProps {
 
 export default function DetailField({ label, value, isPassword, isLink, onCopy, onLinkPress }: DetailFieldProps) {
   const [visible, setVisible] = useState(!isPassword);
+  
+  const { colors, isDark } = useTheme();
+  const s = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
 
   const displayValue = isPassword && !visible ? '••••••••••••••••' : value;
 
@@ -28,19 +32,19 @@ export default function DetailField({ label, value, isPassword, isLink, onCopy, 
         <View style={s.actions}>
           {isPassword && (
             <TouchableOpacity onPress={() => setVisible(!visible)} style={s.iconBtn}>
-              {visible ? <EyeOff size={18} color={COLORS.secondary} /> : <Eye size={18} color={COLORS.secondary} />}
+              {visible ? <EyeOff size={18} color={colors.neutral} /> : <Eye size={18} color={colors.neutral} />}
             </TouchableOpacity>
           )}
           
           {isLink && (
             <TouchableOpacity onPress={onLinkPress} style={s.iconBtn}>
-              <ExternalLink size={18} color={COLORS.secondary} />
+              <ExternalLink size={18} color={colors.neutral} />
             </TouchableOpacity>
           )}
 
           {!isLink && (
             <TouchableOpacity onPress={onCopy} style={s.iconBtn}>
-              <Copy size={18} color={COLORS.secondary} />
+              <Copy size={18} color={colors.neutral} />
             </TouchableOpacity>
           )}
         </View>
@@ -49,9 +53,9 @@ export default function DetailField({ label, value, isPassword, isLink, onCopy, 
   );
 }
 
-const s = StyleSheet.create({
+const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   container: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.md,
@@ -60,7 +64,7 @@ const s = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     fontFamily: FONTS.body,
-    color: COLORS.secondary,
+    color: colors.secondary,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
     marginBottom: 4,
@@ -74,7 +78,7 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontFamily: FONTS.body,
-    color: COLORS.primary,
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   linkValue: {

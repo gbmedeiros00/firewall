@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import { COLORS, FONTS, RADIUS, SPACING } from '../theme';
+import { FONTS, RADIUS, SPACING } from '../theme';
 import { EyeIcon, EyeOffIcon } from '../icons';
+import { useTheme, ThemeColors } from '../contexts/ThemeContext';
 
 export interface InputFieldProps {
   label: string;
@@ -30,6 +31,9 @@ export default function InputField({
   error, success, keyboardType, autoComplete,
   rightComponent
 }: InputFieldProps) {
+  const { colors, isDark } = useTheme();
+  const inp = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+
   return (
     <View style={inp.group}>
       <View style={inp.labelRow}>
@@ -46,7 +50,7 @@ export default function InputField({
         <TextInput
           style={inp.field}
           placeholder={placeholder}
-          placeholderTextColor={COLORS.placeholder}
+          placeholderTextColor={colors.placeholder}
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={secure && !visible}
@@ -63,8 +67,8 @@ export default function InputField({
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             {visible
-              ? <EyeIcon size={20} color={COLORS.secondary} />
-              : <EyeOffIcon size={20} color={COLORS.secondary} />}
+              ? <EyeIcon size={20} color={colors.secondary} />
+              : <EyeOffIcon size={20} color={colors.secondary} />}
           </TouchableOpacity>
         )}
       </View>
@@ -72,7 +76,7 @@ export default function InputField({
   );
 }
 
-const inp = StyleSheet.create({
+const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   group: { marginBottom: SPACING.lg },
   labelRow: {
     flexDirection: 'row',
@@ -84,23 +88,23 @@ const inp = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     fontFamily: FONTS.body,
-    color: COLORS.secondary,
+    color: colors.secondary,
     letterSpacing: 0.7,
     textTransform: 'uppercase',
   },
   wrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: RADIUS.md,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingHorizontal: SPACING.md,
   },
-  wrapFocused: { borderColor: COLORS.tertiary, backgroundColor: COLORS.white },
-  wrapError: { borderColor: COLORS.error },
-  wrapSuccess: { borderColor: COLORS.success },
+  wrapFocused: { borderColor: colors.tertiary, backgroundColor: colors.surface },
+  wrapError: { borderColor: colors.error },
+  wrapSuccess: { borderColor: colors.success },
   iconLeft: { marginRight: SPACING.sm },
-  field: { flex: 1, height: 50, fontSize: 15, fontFamily: FONTS.body, color: COLORS.textPrimary },
+  field: { flex: 1, height: 50, fontSize: 15, fontFamily: FONTS.body, color: colors.textPrimary },
   eyeBtn: { paddingLeft: SPACING.sm },
 });

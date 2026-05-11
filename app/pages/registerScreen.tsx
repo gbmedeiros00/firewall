@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,8 @@ import {
   StatusBar,
   Platform,
   ActivityIndicator,
-  KeyboardAvoidingView,
 } from 'react-native';
-import { COLORS, FONTS, SPACING, RADIUS } from '../theme';
+import { FONTS, SPACING, RADIUS } from '../theme';
 import {
   ShieldFilledIcon,
   MailIcon,
@@ -22,6 +21,9 @@ import {
 import InputField from '../components/InputField';
 import RequirementChip from '../components/RequirementChip';
 import { getStrength, getRequirements } from '../utils/passwordUtils';
+import ScreenWrapper from '../components/ScreenWrapper';
+import { API_URL } from '../config';
+import { useTheme, ThemeColors } from '../contexts/ThemeContext';
 
 
 export default function RegisterScreen({
@@ -38,6 +40,9 @@ export default function RegisterScreen({
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError]   = useState('');
 
+  const { colors, isDark } = useTheme();
+  const s = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+
   const strength  = getStrength(password);
   const reqs      = getRequirements(password);
   const allMet    = reqs.every(r => r.met);
@@ -52,8 +57,6 @@ export default function RegisterScreen({
     setApiError('');
     
     try {
-      const API_URL = 'http://10.243.35.56:8080';
-      
       const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: {
@@ -76,23 +79,16 @@ export default function RegisterScreen({
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={s.root} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+    <View style={s.root}>
+      <StatusBar barStyle="light-content" backgroundColor={isDark ? colors.background : colors.primary} />
 
       <View style={s.header}>
-        <ShieldFilledIcon size={22} color={COLORS.white} />
+        <ShieldFilledIcon size={22} color={isDark ? colors.primary : '#FFFFFF'} />
         <Text style={s.headerBrand}>FIREWALL</Text>
       </View>
 
-      <ScrollView
-        style={s.scroll}
+      <ScreenWrapper
         contentContainerStyle={s.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
       >
         <Text style={s.title}>Crie sua conta</Text>
         <Text style={s.subtitle}>
@@ -106,7 +102,7 @@ export default function RegisterScreen({
           onChangeText={setEmail}
           keyboardType="email-address"
           autoComplete="email"
-          icon={<MailIcon size={18} color={COLORS.secondary} />}
+          icon={<MailIcon size={18} color={colors.secondary} />}
           focused={focused === 'email'}
           onFocus={() => setFocused('email')}
           onBlur={() => setFocused(null)}
@@ -121,7 +117,7 @@ export default function RegisterScreen({
           showToggle
           visible={showPass}
           onToggle={() => setShowPass(v => !v)}
-          icon={<LockIcon size={18} color={COLORS.secondary} />}
+          icon={<LockIcon size={18} color={colors.secondary} />}
           focused={focused === 'pass'}
           onFocus={() => setFocused('pass')}
           onBlur={() => setFocused(null)}
@@ -164,7 +160,7 @@ export default function RegisterScreen({
           showToggle
           visible={showConf}
           onToggle={() => setShowConf(v => !v)}
-          icon={<LockIcon size={18} color={COLORS.secondary} />}
+          icon={<LockIcon size={18} color={colors.secondary} />}
           focused={focused === 'confirm'}
           onFocus={() => setFocused('confirm')}
           onBlur={() => setFocused(null)}
@@ -187,7 +183,7 @@ export default function RegisterScreen({
           disabled={!canSubmit || isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color={COLORS.white} />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
             <Text style={s.btnText}>Criar conta</Text>
           )}
@@ -195,50 +191,54 @@ export default function RegisterScreen({
 
         <TouchableOpacity style={s.loginLink} onPress={onNavigateToLogin}>
           <Text style={s.loginLinkText}>Já tenho conta </Text>
-          <ArrowRightIcon size={14} color={COLORS.primary} strokeWidth={2.5} />
+          <ArrowRightIcon size={14} color={colors.primary} strokeWidth={2.5} />
           <Text style={s.loginLinkBold}> Entrar</Text>
         </TouchableOpacity>
 
         <View style={s.zkBadge}>
-          <ZeroKnowledgeIcon size={18} color={COLORS.secondary} />
+          <ZeroKnowledgeIcon size={18} color={colors.secondary} />
           <Text style={s.zkText}>ARQUITETURA ZERO-KNOWLEDGE</Text>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+        {/* Respiro final garantido para forçar a rolagem até o fim */}
+        <View style={s.bottomSpacer} />
+      </ScreenWrapper>
+    </View>
   );
 }
 
-const s = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: COLORS.white },
+const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
+  root:   { flex: 1, backgroundColor: colors.background },
   header: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: isDark ? colors.background : colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.xxl,
     paddingBottom: SPACING.md,
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 16 : 54,
     gap: SPACING.sm,
+    borderBottomWidth: isDark ? 1 : 0,
+    borderBottomColor: colors.border,
   },
   headerBrand: {
-    color: COLORS.white,
+    color: isDark ? colors.primary : '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 2,
     fontFamily: FONTS.headline,
   },
-  scroll:   { flex: 1 },
-  content:  { paddingHorizontal: SPACING.xxl, paddingTop: SPACING.xxxl, paddingBottom: 120 },
+  content:  { paddingHorizontal: SPACING.xxl, paddingTop: SPACING.xxxl, paddingBottom: 20 },
   title: {
     fontSize: 28,
     fontWeight: '700',
     fontFamily: FONTS.headline,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: SPACING.sm,
   },
   subtitle: {
     fontSize: 14,
     fontFamily: FONTS.body,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 22,
     marginBottom: SPACING.xxxl,
   },
@@ -254,7 +254,7 @@ const s = StyleSheet.create({
     flex: 1,
     height: 4,
     borderRadius: 2,
-    backgroundColor: COLORS.surfaceAlt,
+    backgroundColor: colors.surfaceAlt,
   },
   strengthLabel: {
     fontSize: 10,
@@ -265,10 +265,10 @@ const s = StyleSheet.create({
     textAlign: 'right',
   },
   reqBox: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
   },
@@ -276,7 +276,7 @@ const s = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     fontFamily: FONTS.body,
-    color: COLORS.neutral,
+    color: colors.neutral,
     letterSpacing: 1,
     marginBottom: SPACING.md,
   },
@@ -284,35 +284,35 @@ const s = StyleSheet.create({
   errorText: {
     fontSize: 12,
     fontFamily: FONTS.body,
-    color: COLORS.error,
+    color: colors.error,
     marginTop: -10,
     marginBottom: SPACING.md,
   },
   apiErrorText: {
     fontSize: 14,
     fontFamily: FONTS.body,
-    color: COLORS.error,
+    color: colors.error,
     textAlign: 'center',
     marginBottom: SPACING.md,
   },
   legal: {
     fontSize: 12,
     fontFamily: FONTS.body,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 18,
     textAlign: 'center',
     marginBottom: SPACING.xxl,
   },
   btn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: RADIUS.lg,
     paddingVertical: 17,
     alignItems: 'center',
     marginBottom: SPACING.xl,
   },
-  btnDisabled: { backgroundColor: COLORS.secondary, opacity: 0.5 },
+  btnDisabled: { backgroundColor: colors.secondary, opacity: 0.5 },
   btnText: {
-    color: COLORS.white,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
     fontFamily: FONTS.body,
@@ -324,16 +324,16 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: SPACING.xxxl,
   },
-  loginLinkText: { fontSize: 14, fontFamily: FONTS.body, color: COLORS.textSecondary },
-  loginLinkBold: { fontSize: 14, fontFamily: FONTS.body, color: COLORS.primary, fontWeight: '700' },
+  loginLinkText: { fontSize: 14, fontFamily: FONTS.body, color: colors.textSecondary },
+  loginLinkBold: { fontSize: 14, fontFamily: FONTS.body, color: colors.primary, fontWeight: '700' },
   zkBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.xl,
     gap: SPACING.sm,
@@ -342,7 +342,10 @@ const s = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     fontFamily: FONTS.body,
-    color: COLORS.secondary,
+    color: colors.secondary,
     letterSpacing: 1.2,
+  },
+  bottomSpacer: {
+    height: Platform.OS === 'ios' ? 60 : 100, // Força um bloco invisível no final da tela
   },
 });

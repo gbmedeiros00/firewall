@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ActivityIndicator, Platform } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { COLORS, FONTS, RADIUS, SPACING } from '../theme';
+import { FONTS, RADIUS, SPACING } from '../theme';
 import SecondaryHeader from '../components/SecondaryHeader';
 import InputField from '../components/InputField';
 import CategorySelector from '../components/CategorySelector';
 import TextArea from '../components/TextArea';
+import PasswordGeneratorModal from '../components/PasswordGeneratorModal';
 import { getStrength } from '../utils/passwordUtils';
+import ScreenWrapper from '../components/ScreenWrapper';
+import { API_URL } from '../config';
+import { useTheme, ThemeColors } from '../contexts/ThemeContext';
 
 const CATEGORIES = ['Trabalho', 'Social', 'Finanças', 'Jogos'];
 
@@ -16,25 +20,40 @@ interface AddCredentialScreenProps {
 }
 
 export default function AddCredentialScreen({ token, onBack }: AddCredentialScreenProps) {
+  const { colors, isDark } = useTheme();
+  const s = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
+
   const [title, setTitle] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [url, setUrl] = useState('');
   const [category, setCategory] = useState('Trabalho');
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState<string[]>(['']); // Começa com um campo de nota
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isGeneratorVisible, setIsGeneratorVisible] = useState(false);
+
+  const handleNoteChange = (text: string, index: number) => {
+    const newNotes = [...notes];
+    newNotes[index] = text;
+    setNotes(newNotes);
+  };
+
+  const handleAddNote = () => {
+    setNotes([...notes, '']);
+  };
+
+  const handleDeleteNote = (index: number) => {
+    if (notes.length > 1) {
+      setNotes(notes.filter((_, i) => i !== index));
+    } else {
+      setNotes(['']); // Limpa o último campo em vez de remover
+    }
+  };
 
   const handleGeneratePassword = () => {
-    // Gera uma senha aleatória ultra segura de 16 caracteres
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~|}{[]:;?><,./-=';
-    let generated = '';
-    for (let i = 0; i < 16; i++) {
-      generated += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setPassword(generated);
-    setShowPassword(true); // Exibe a senha recém-gerada para o usuário poder copiar/ver
+    setIsGeneratorVisible(true);
   };
 
   const handleSave = async () => {
@@ -47,7 +66,6 @@ export default function AddCredentialScreen({ token, onBack }: AddCredentialScre
     setError('');
 
     try {
-      const API_URL = 'http://10.243.35.56:8080';
       const response = await fetch(`${API_URL}/api/credentials`, {
         method: 'POST',
         headers: {
@@ -60,7 +78,7 @@ export default function AddCredentialScreen({ token, onBack }: AddCredentialScre
           password,
           url,
           category,
-          notes
+          notes: JSON.stringify(notes.filter(note => note.trim() !== '')) // Serializa o array para string
         }),
       });
 
@@ -79,7 +97,7 @@ export default function AddCredentialScreen({ token, onBack }: AddCredentialScre
   // Botão "Gerar" que vai entrar na propriedade rightComponent do InputField
   const generateBtn = (
     <TouchableOpacity onPress={handleGeneratePassword} style={s.generateBtn}>
-      <FontAwesome5 name="sync-alt" size={10} color={COLORS.primary} />
+      <FontAwesome5 name="sync-alt" size={10} color={colors.primary} />
       <Text style={s.generateText}>Gerar</Text>
     </TouchableOpacity>
   );
@@ -89,24 +107,19 @@ export default function AddCredentialScreen({ token, onBack }: AddCredentialScre
   const strengthWidth = strength.filled === 0 ? '10%' : `${(strength.filled / 4) * 100}%`;
 
   return (
-    <KeyboardAvoidingView 
-      style={s.root} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+    <View style={s.root}>
+      <StatusBar barStyle="light-content" backgroundColor={isDark ? colors.background : colors.primary} />
       
       <SecondaryHeader 
         title="Adicionar Entrada" 
         onBack={onBack || (() => console.log('Voltar'))} 
       />
-
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScreenWrapper contentContainerStyle={s.content}>
         
         {/* Ícone Superior (Caixa Cinza com Chave) */}
         <View style={s.topIconContainer}>
           <View style={s.keyBox}>
-            <FontAwesome5 name="key" size={24} color={COLORS.primary} />
+            <FontAwesome5 name="key" size={24} color={colors.primary} />
           </View>
         </View>
 
@@ -161,13 +174,30 @@ export default function AddCredentialScreen({ token, onBack }: AddCredentialScre
           onSelect={setCategory} 
         />
 
-        <TextArea
-          label="NOTAS"
-          placeholder="Adicione detalhes adicionais..."
-          value={notes}
-          onChangeText={setNotes}
-        />
+        {/* Seção de Notas Múltiplas */}
+        <Text style={s.label}>NOTAS</Text>
+        {notes.map((note, index) => (
+          <View key={index} style={s.noteContainer}>
+            <View style={{ flex: 1 }}>
+              <TextArea
+                label="" // O label já está acima da lista
+                placeholder={`Nota ${index + 1}...`}
+                value={note}
+                onChangeText={(text) => handleNoteChange(text, index)}
+              />
+            </View>
+            <TouchableOpacity onPress={() => handleDeleteNote(index)} style={s.deleteNoteBtn}>
+              <FontAwesome5 name="trash-alt" size={16} color={colors.error} />
+            </TouchableOpacity>
+          </View>
+        ))}
 
+        <TouchableOpacity onPress={handleAddNote} style={s.addNoteBtn}>
+          <FontAwesome5 name="plus" size={12} color={colors.primary} />
+          <Text style={s.addNoteText}>Adicionar Nota</Text>
+        </TouchableOpacity>
+        {/* --- Fim da Seção de Notas --- */}
+        
         {error ? <Text style={s.errorText}>{error}</Text> : null}
 
         {/* Botão Salvar e Rodapé */}
@@ -178,7 +208,7 @@ export default function AddCredentialScreen({ token, onBack }: AddCredentialScre
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color={COLORS.white} />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
             <Text style={s.saveButtonText}>Salvar</Text>
           )}
@@ -186,19 +216,33 @@ export default function AddCredentialScreen({ token, onBack }: AddCredentialScre
 
         <Text style={s.footerText}>CRIPTOGRAFADO COM PADRÃO AES-256 BITS</Text>
 
-      </ScrollView>
-    </KeyboardAvoidingView>
+        {/* Respiro final garantido */}
+        <View style={s.bottomSpacer} />
+
+      </ScreenWrapper>
+
+      <PasswordGeneratorModal
+        visible={isGeneratorVisible}
+        onClose={() => setIsGeneratorVisible(false)}
+        onApply={(generatedPassword) => {
+          setPassword(generatedPassword);
+          setShowPassword(true);
+        }}
+      />
+      
+    </View>
   );
 }
 
-const s = StyleSheet.create({
+const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.background,
   },
   content: {
-    padding: SPACING.xl,
-    paddingBottom: 120, // Espaço extra para o Scroll com teclado
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.xl, // Adicionado para dar respiro entre o cabeçalho e o formulário
+    paddingBottom: 20, 
   },
   topIconContainer: {
     alignItems: 'center',
@@ -207,18 +251,18 @@ const s = StyleSheet.create({
   keyBox: {
     width: 60,
     height: 60,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.surfaceAlt,
     borderRadius: RADIUS.md,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: COLORS.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
     // Fundo cinza ao redor da caixa branca
-    borderWidth: 10,
-    borderColor: COLORS.surface, 
+    borderWidth: 6,
+    borderColor: colors.background, 
   },
   generateBtn: {
     flexDirection: 'row',
@@ -226,10 +270,15 @@ const s = StyleSheet.create({
     gap: 4,
   },
   generateText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontSize: 11,
     fontWeight: '700',
     fontFamily: FONTS.body,
+  },
+  label: {
+    fontSize: 10, fontFamily: FONTS.body, fontWeight: '700', color: colors.secondary,
+    letterSpacing: 1, textTransform: 'uppercase', marginBottom: SPACING.sm,
+    marginTop: SPACING.lg,
   },
   strengthRow: {
     flexDirection: 'row',
@@ -240,30 +289,51 @@ const s = StyleSheet.create({
   strengthTrack: {
     flex: 1,
     height: 4,
-    backgroundColor: COLORS.surfaceAlt,
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 2,
   },
   strengthFill: {
     height: '100%',
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 2,
   },
   strengthText: {
     marginLeft: SPACING.sm,
     fontSize: 10,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: colors.primary,
     letterSpacing: 0.5,
   },
+  noteContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  deleteNoteBtn: {
+    padding: SPACING.sm,
+  },
+  addNoteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    alignSelf: 'flex-start',
+    paddingVertical: SPACING.sm,
+  },
+  addNoteText: {
+    color: colors.primary,
+    fontFamily: FONTS.body,
+    fontWeight: '700',
+  },
   errorText: {
-    color: COLORS.error,
+    color: colors.error,
     fontSize: 12,
     fontFamily: FONTS.body,
     textAlign: 'center',
     marginTop: SPACING.md,
   },
   saveButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: RADIUS.md,
     alignItems: 'center',
@@ -274,7 +344,7 @@ const s = StyleSheet.create({
     opacity: 0.7,
   },
   saveButtonText: {
-    color: COLORS.white,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
     fontFamily: FONTS.body,
@@ -282,8 +352,11 @@ const s = StyleSheet.create({
   footerText: {
     textAlign: 'center',
     fontSize: 9,
-    color: COLORS.placeholder,
+    color: colors.placeholder,
     fontFamily: FONTS.body,
     letterSpacing: 0.5,
+  },
+  bottomSpacer: {
+    height: Platform.OS === 'ios' ? 60 : 100,
   },
 });

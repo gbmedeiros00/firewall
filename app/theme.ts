@@ -1,7 +1,53 @@
 import { Platform } from 'react-native';
 
+// Paleta Clara (Light Mode)
+export const lightColors = {
+  background: '#F4F5F7', 
+  surface: '#FFFFFF',
+  surfaceAlt: '#ECEEF2',
+  primary: '#1F3864',
+  secondary: '#536079',
+  tertiary: '#2E59A8',
+  neutral: '#77777B',
+  border: '#DDE1E9',
+  textPrimary: '#1A1F2E',
+  textSecondary: '#536079',
+  textDisabled: '#A0A9B8',
+  placeholder: '#A0A9B8',
+  success: '#1D9E75',
+  warning: '#EF9F27',
+  error: '#E24B4A',
+  info: '#2E59A8',
+  white: '#FFFFFF',
+  black: '#000000',
+};
+
+// Paleta Vault Sentinel - Dark Matte Edition
+export const darkColors = {
+  background: '#0F141E', // Grafite profundo
+  surface: '#1A2235',    // Cards um pouco mais claros para profundidade
+  surfaceAlt: '#252F48', // Elementos de destaque em hover/alt
+  primary: '#2E59A8',    // Azul vibrante para manter ações primárias ativas
+  secondary: '#8F9BB3',
+  tertiary: '#3B6199',
+  neutral: '#9CA3AF',
+  border: '#2E3A59',
+  textPrimary: '#F9FAFB', // Branco Gelo
+  textSecondary: '#D1D5DB', // Cinza claro
+  textDisabled: '#6B7280',
+  placeholder: '#6B7280',
+  success: '#10B981',
+  warning: '#F59E0B',
+  error: '#EF4444',      // Vermelho Alerta
+  info: '#3B82F6',
+  white: '#FFFFFF',
+  black: '#000000',
+};
+
+export type ThemeColors = typeof lightColors;
+
+// Mantido para compatibilidade reversa temporária com componentes não refatorados
 export const COLORS = {
-  // Brand palette (from style guide)
   primary:   '#1F3864',
   secondary: '#536079',
   tertiary:  '#2E59A8',
